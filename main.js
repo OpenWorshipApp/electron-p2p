@@ -13,10 +13,11 @@ const windows = {};
 function otherWindows(id) {
   return Object.keys(windows)
     .filter((key) => {
+      const keyId = parseInt(key, 10);
       if (checkIsMainId(id)) {
-        return key !== id;
+        return keyId !== id;
       }
-      return checkIsMainId(key);
+      return checkIsMainId(keyId);
     })
     .map((key) => {
       return windows[key];
@@ -91,9 +92,8 @@ ipcMain.on("give-signal-for-main", (event, { signalData, returnEventName }) => {
     event.sender.send(returnEventName, false);
     return;
   }
-  const id = event.sender.id;
   mainWindow.webContents
-    .executeJavaScript(`window.connectPeer("${id}", ${signalData});`)
+    .executeJavaScript(`window.connectPeer(${signalData});`)
     .then((isSuccess) => {
       event.sender.send(returnEventName, isSuccess);
     });
@@ -101,6 +101,7 @@ ipcMain.on("give-signal-for-main", (event, { signalData, returnEventName }) => {
 
 ipcMain.on("message", (event, message) => {
   const id = event.sender.id;
+  console.log("Received message from", id, ":", message);
   otherWindows(id).forEach((peer) => {
     peer.webContents.send("message", message);
   });

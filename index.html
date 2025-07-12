@@ -9,6 +9,23 @@
     />
   </head>
   <body>
+    <div>
+      <pre>
+        # send normal message
+        send("hello");
+        # send message but force with electronAPI
+        send("hello", true);
+        # send message with p2p API
+        pSend("hello");
+        # send message with electronAPI
+        eSend("hello");
+        # create new peer window
+        createWindow();
+        # create main window
+        createWindow(true);
+      </pre>
+    </div>
+    <script src="render-basic.js"></script>
     <script src="render.js"></script>
   </body>
 </html>
