@@ -11,5 +11,8 @@
   "description": "",
   "devDependencies": {
     "electron": "^37.2.1"
+  },
+  "dependencies": {
+    "simple-peer": "^9.11.1"
   }
 }

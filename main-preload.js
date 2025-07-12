@@ -5,5 +5,5 @@ window.electronAPI = {
   SimplePeer,
   ipcRenderer,
   uuid: Date.now().toString(36),
-  isMain: false,
+  isMain: true,
 };
