@@ -20,6 +20,14 @@ function setState(state) {
   }
 }
 setState();
+if (isMain) {
+  const button = document.createElement("button");
+  button.textContent = "Create Peer";
+  button.onclick = () => {
+    ipcRenderer.send("create-peer");
+  };
+  document.body.appendChild(button);
+}
 
 const p = new SimplePeer({
   initiator: isMain,
@@ -29,8 +37,10 @@ p.on("error", (err) => {
   console.log("error", err);
 });
 if (isMain) {
+  console.log("Generating main signal data...");
   p.on("signal", (signalData) => {
     ipcRenderer.send("main-signal-data", JSON.stringify(signalData));
+    console.log("Main signal data sent:");
   });
   p.on("close", () => {
     setState("disconnected");
@@ -71,16 +81,20 @@ if (isMain) {
 
   function loadMainSignalData() {
     const signalData = ipcRenderer.sendSync("ask-for-main-signal");
-    if (signalData === null) {
-      console.log(
-        "No signal data received from main window. Retrying in " +
-          waitSeconds +
-          " seconds..."
-      );
-      setTimeout(loadMainSignalData, waitSeconds * 1000);
-      return;
+    if (signalData !== null) {
+      try {
+        p.signal(signalData);
+        return;
+      } catch (error) {
+        console.error("Error setting main signal data:", error);
+      }
     }
-    p.signal(signalData);
+    console.log(
+      "Unable to set main signal data. Retrying in " +
+        waitSeconds +
+        " seconds..."
+    );
+    setTimeout(loadMainSignalData, waitSeconds * 1000);
   }
   p.on("close", () => {
     setState("disconnected");
