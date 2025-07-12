@@ -75,8 +75,8 @@ app.on("window-all-closed", () => {
   }
 });
 
-ipcMain.on("create-peer", (_event) => {
-  createWindow();
+ipcMain.on("create-peer", (_event, isMain) => {
+  createWindow(isMain);
 });
 
 ipcMain.on("main-signal-data", (_event, signalData) => {

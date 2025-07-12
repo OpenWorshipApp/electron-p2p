@@ -2,6 +2,7 @@ const { isMain, ipcRenderer, SimplePeer } = window.electronAPI;
 
 const h2 = document.createElement("h2");
 h2.textContent = isMain ? "Main" : "";
+h2.style.color = isMain ? "blue" : "black";
 document.body.appendChild(h2);
 const stateDiv = document.createElement("div");
 document.body.appendChild(stateDiv);
@@ -15,37 +16,46 @@ function setState(state) {
   } else if (state === "disconnected") {
     stateDiv.textContent = "State: Disconnected";
     stateDiv.style.color = "red";
-  } else {
-    stateDiv.textContent = "";
   }
 }
-setState();
-if (isMain) {
-  const button = document.createElement("button");
-  button.textContent = "Create Peer";
-  button.onclick = () => {
-    ipcRenderer.send("create-peer");
-  };
-  document.body.appendChild(button);
-}
 
-const p = new SimplePeer({
-  initiator: isMain,
-  trickle: false,
-});
-p.on("error", (err) => {
-  console.log("error", err);
-});
-if (isMain) {
+const waitSeconds = 2;
+const connectionResolvers = [];
+function resolveAll(isSuccess) {
+  while (connectionResolvers.length) {
+    const [_id, resolver] = connectionResolvers.shift();
+    resolver(isSuccess);
+  }
+}
+window.connectPeer = (id, signalData) => {
+  if (!window.p) {
+    return Promise.resolve(false);
+  }
+  return new Promise((resolve) => {
+    console.log("Setting peer signal data");
+    const timeout = setTimeout(() => {
+      console.log("Connection timed out");
+      resolveAll(false);
+    }, 10000);
+    connectionResolvers.push([
+      id,
+      (isSuccess) => {
+        clearTimeout(timeout);
+        resolve(isSuccess);
+      },
+    ]);
+    window.p.signal(signalData);
+  });
+};
+
+function initMain(p) {
   console.log("Generating main signal data...");
   p.on("signal", (signalData) => {
     ipcRenderer.send("main-signal-data", JSON.stringify(signalData));
-    console.log("Main signal data sent:");
+    console.log("Main signal data sent");
   });
-  p.on("close", () => {
-    setState("disconnected");
-  });
-} else {
+}
+function initPeer(p) {
   function sendSignalToMain(signalData) {
     return new Promise((resolve) => {
       const returnEventName = "signal-received";
@@ -58,78 +68,89 @@ if (isMain) {
       });
     });
   }
-  const waitSeconds = 2;
-  async function attemptConnect(signalData) {
-    setState("connecting");
-    const isSuccess = await sendSignalToMain(signalData);
-    setState(isSuccess ? "connected" : "disconnected");
+  p.on("signal", async (signalData) => {
+    console.log("Sending signal to main...");
+    const isSuccess = await sendSignalToMain(JSON.stringify(signalData));
     if (!isSuccess) {
       console.log(
         "Failed to connect to main window, retrying in " +
           waitSeconds +
           " seconds..."
       );
-      setTimeout(() => {
-        attemptConnect(signalData);
-      }, waitSeconds * 1000);
+      await new Promise((resolve) => setTimeout(resolve, waitSeconds * 1000));
+      p.destroy();
       return;
     }
-  }
-  p.on("signal", (signalData) => {
-    attemptConnect(JSON.stringify(signalData));
   });
 
   function loadMainSignalData() {
+    setState("connecting");
+    console.log("Asking for main signal data...");
     const signalData = ipcRenderer.sendSync("ask-for-main-signal");
     if (signalData !== null) {
-      try {
-        p.signal(signalData);
-        return;
-      } catch (error) {
-        console.error("Error setting main signal data:", error);
-      }
+      console.log("Setting main signal data");
+      p.signal(signalData);
+      return;
     }
-    console.log(
-      "Unable to set main signal data. Retrying in " +
-        waitSeconds +
-        " seconds..."
-    );
-    setTimeout(loadMainSignalData, waitSeconds * 1000);
+    p.destroy();
   }
-  p.on("close", () => {
-    setState("disconnected");
-    loadMainSignalData();
-  });
   loadMainSignalData();
 }
-const connectionResolvers = {};
-p.on("connect", () => {
-  setState("connected");
-  while (connectionResolvers.length) {
-    const resolver = connectionResolvers.shift();
-    resolver();
+let timeOutId = null;
+function reInit() {
+  if (timeOutId !== null) {
+    clearTimeout(timeOutId);
   }
-});
-window.connectPeer = (id, signalData) => {
-  const promise = new Promise((resolve) => {
-    setState("connecting");
-    connectionResolvers[id] = () => {
-      setState("connected");
-      resolve();
-    };
-    p.signal(signalData);
+  timeOutId = setTimeout(() => {
+    timeOutId = null;
+    init();
+  }, waitSeconds * 1000);
+}
+function init() {
+  console.log("Initializing peer connection...");
+  if (window.p) {
+    if (!window.p.destroyed) {
+      window.p.destroy();
+    }
+    window.p = null;
+  }
+  setState("connecting");
+  const p = new SimplePeer({
+    initiator: isMain,
+    trickle: false,
   });
-  return promise;
-};
+  p.on("error", (err) => {
+    console.log("error", err);
+    reInit();
+  });
+  p.on("connect", () => {
+    console.log("Peer connected");
+    setState("connected");
+    resolveAll(true);
+  });
+  if (isMain) {
+    ipcRenderer.send("main-signal-data", null);
+    initMain(p);
+  } else {
+    initPeer(p);
+  }
+  p.on("data", (data) => {
+    console.log(Date.now());
+    console.log(data.toString());
+  });
+  p.on("close", () => {
+    setState("disconnected");
+    reInit();
+  });
+  window.p = p;
+}
+
+init();
 
 // ----------------------
-p.on("data", (data) => {
-  console.log(Date.now());
-  console.log(data.toString());
-});
 function pSend(message) {
   console.log(Date.now());
-  p.send(message);
+  window.p?.send(message);
 }
 
 ipcRenderer.on("message", (_event, message) => {
@@ -141,10 +162,14 @@ function eSend(message) {
   ipcRenderer.send("message", message);
 }
 
-function send(message) {
-  if (stateDiv.style.color === "green") {
-    pSend(message);
-  } else {
+function send(message, isForceE = false) {
+  if (stateDiv.style.color !== "green" || isForceE) {
     eSend(message);
+  } else {
+    pSend(message);
   }
+}
+
+function createWindow(isMain = false) {
+  ipcRenderer.send("create-peer", isMain);
 }
