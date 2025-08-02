@@ -44,20 +44,14 @@ async function initConnection(oldP, mainSignalData = null, onError = () => { }) 
 }
 
 if (isMain) {
-  let timeoutError = null;
   async function init() {
     connectionController.onPeerPData = () => { };
     console.log("Initializing main peer connection...");
+    let isInitError = false;
     const pData = await initConnection(connectionController.mainP, null, () => {
-      if (timeoutError !== null) {
-        clearTimeout(timeoutError);
-        timeoutError = null;
-      }
-      console.log("Reinitializing main peer connection due to error...");
-      timeoutError = setTimeout(() => {
-        timeoutError = null;
-        init();
-      }, 2000);
+      if (isInitError) return;
+      isInitError = true;
+      init();
     });
     const { p } = pData;
     p.on("close", () => {
