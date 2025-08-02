@@ -35,7 +35,7 @@ function createWindow(isMain = false) {
     },
   });
   win.webContents.openDevTools();
-  win.loadFile("index.html");
+  win.loadFile(path.resolve(__dirname, "index.html"));
   const id = win.webContents.id;
   if (isMain) {
     mainData.id = id;
