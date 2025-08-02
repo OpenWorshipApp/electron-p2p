@@ -8,11 +8,14 @@
 </head>
 
 <body>
-  <div id="open-screen" style="display: none;">
-    <button onclick="openWindow();">Open Screen</button>
+  <div id="main-open-screen" style="display: none;">
+    <button onclick="openScreenWindow();">Open Screen</button>
+  </div>
+  <div id="main-close-screen" style="display: none;">
+    <button onclick="closeScreenWindow();">Close Screen</button>
   </div>
   <div id="close-screen" style="display: none;">
-    <button onclick="closeWindow();">Close Screen</button>
+    <button onclick="window.close();">Close</button>
   </div>
   <div>
     <pre>

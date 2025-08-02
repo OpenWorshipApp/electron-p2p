@@ -3,11 +3,11 @@ class ConnectionController {
   onPeerPData = () => { };
   onMainPData = () => { };
 
-  get signalData() {
+  get mainSignalData() {
     return this._mainPData ? this._mainPData.signalData : null;
   }
 
-  get p() {
+  get mainP() {
     return this._mainPData ? this._mainPData.p : null;
   }
 
@@ -21,11 +21,11 @@ class ConnectionController {
   }
 }
 
-const connectionController = new ConnectionController();
+window.connectionController = new ConnectionController();
 
 function toggleScreenOpener() {
-  const domOpener = document.getElementById("open-screen");
-  const domCloser = document.getElementById("close-screen");
+  const domOpener = document.getElementById("main-open-screen");
+  const domCloser = document.getElementById("main-close-screen");
   if (window.screenWindow) {
     domOpener.style.display = "none";
     domCloser.style.display = "block";
@@ -49,33 +49,41 @@ function openScreenWindow() {
   }
   window.screenWindow = handle;
   window.addEventListener("beforeunload", () => {
-    if (window.screenWindow) {
-      window.screenWindow.close();
+    if (handle) {
+      handle.close();
     }
   });
-  connectionController.onMainPData = async () => {
-    if (connectionController.signalData === null || connectionController.p === null) {
-      console.log("No P data available");
-      return;
+  handle.addEventListener("load", () => {
+    connectionController.onMainPData = async () => {
+      if (
+        connectionController.mainSignalData === null ||
+        connectionController.mainP === null ||
+        !handle
+      ) {
+        console.log("Window is not ready for connection");
+        return;
+      }
+      const peerPData = await handle.initConnection(
+        null, connectionController.mainSignalData,
+      );
+      connectionController.onPeerPData(peerPData);
     }
-    console.log("Main signal data updated:", connectionController.signalData);
-    const peerPData = await window.screenWindow.initConnection(
-      connectionController.signalData,
-    );
-    connectionController.onPeerPData(peerPData);
-  }
-  if (connectionController.mainPData) {
-    connectionController.onMainPData();
-  }
+    handle.addEventListener("beforeunload", () => {
+      connectionController.onMainPData = () => { };
+      delete window.screenWindow;
+      toggleScreenOpener();
+    });
+    handle.document.getElementById("close-screen").style.display = "";
+    handle.wSend = wMessage;
+    if (connectionController.mainPData) {
+      connectionController.onMainPData();
+    }
+  });
   toggleScreenOpener();
 }
 
 function closeScreenWindow() {
-  if (window.screenWindow) {
-    window.screenWindow.close();
-    delete window.screenWindow;
-  }
-  toggleScreenOpener();
+  window.screenWindow.close();
 }
 
 if (isMain) {

@@ -1,129 +1,74 @@
-const waitSeconds = 2;
-const connectionResolvers = [];
-function resolveAll(isSuccess) {
-  while (connectionResolvers.length) {
-    const resolver = connectionResolvers.shift();
-    resolver(isSuccess);
+async function initConnection(oldP, mainSignalData = null, onError = () => { }) {
+  if (oldP !== null && !oldP.destroyed) {
+    console.log("Destroying old peer connection...");
+    oldP.destroy();
   }
-}
-window.connectPeer = (signalData) => {
-  const p = window.p;
-  if (!p) {
-    return Promise.resolve(false);
-  }
-  return new Promise((resolve) => {
-    console.log("Setting peer signal data");
-    const timeout = setTimeout(() => {
-      console.log("Connection timed out");
-      resolveAll(false);
-    }, 5000);
-    connectionResolvers.push((isSuccess) => {
-      clearTimeout(timeout);
-      resolve(isSuccess);
-    });
-    p.signal(signalData);
-  });
-};
-
-function generateMainSignalData(p) {
-  return new Promise((resolve) => {
-    setState("connecting");
-    console.log("Generating main signal data...");
-    p.once("signal", (signalData) => {
-      console.log("Main signal data sent");
-      resolve(JSON.stringify(signalData));
-    });
-  });
-}
-
-function initPeer(p, signalData) {
-  function sendSignalToMain(signalData) {
-    return new Promise((resolve) => {
-      const returnEventName = "signal-received";
-      ipcRenderer.once(returnEventName, (_event, isSuccess) => {
-        resolve(isSuccess);
-      });
-      ipcRenderer.send("give-signal-for-main", {
-        signalData,
-        returnEventName,
-      });
-    });
-  }
-  p.on("signal", async (signalData) => {
-    console.log("Sending signal to main...");
-    const isSuccess = await sendSignalToMain(JSON.stringify(signalData));
-    if (!isSuccess) {
-      p.destroy();
-      return;
-    }
-  });
-  p.signal(signalData);
-}
-let timeOutId = null;
-function reInit() {
-  if (timeOutId !== null) {
-    clearTimeout(timeOutId);
-  }
-  timeOutId = setTimeout(() => {
-    timeOutId = null;
-    initConnection();
-  }, waitSeconds * 1000);
-}
-
-async function initConnection(p, mainSignalData) {
   console.log("Initializing peer connection...");
-  if (p !== null && !p.destroyed) {
-    p.destroy();
-  }
-  const p = new window.electronAPI.SimplePeer({
+  const newP = new window.electronAPI.SimplePeer({
     initiator: !mainSignalData,
     trickle: false,
   });
-  p.on("error", (err) => {
-    console.log("error", err);
-    reInit();
-  });
-  p.on("connect", () => {
+  newP.on("connect", () => {
     console.log("Peer connected");
     setState("connected");
-    resolveAll(true);
   });
-  p.on("data", (data) => {
+  newP.on("data", (data) => {
     console.log(Date.now());
     console.log(data.toString());
   });
-  p.on("close", () => {
-    setState("disconnected");
-    reInit();
+  newP.on("error", (err) => {
+    console.log("error", err);
+    onError(err);
   });
   let signalData = null;
   setState("connecting");
   if (mainSignalData) {
     console.log("Applying main signal data...");
     signalData = await new Promise((resolve) => {
-      p.once("signal", (newSignalData) => {
+      newP.once("signal", (newSignalData) => {
         console.log("Peer signal data generated");
-        resolve(JSON.stringify(newSignalData));
+        resolve(newSignalData);
       });
-      p.signal(signalData);
+      newP.signal(mainSignalData);
     });
   } else {
     console.log("Generating main signal data...");
     signalData = await new Promise((resolve) => {
-      p.once("signal", (newSignalData) => {
+      newP.once("signal", (newSignalData) => {
         console.log("Main signal data generated");
-        resolve(JSON.stringify(newSignalData));
+        resolve(newSignalData);
       });
     });
   }
-  return { p, signalData };
+  return { p: newP, signalData };
 }
 
 if (isMain) {
-  initConnection().then((pData) => {
+  let timeoutError = null;
+  async function init() {
+    connectionController.onPeerPData = () => { };
+    console.log("Initializing main peer connection...");
+    const pData = await initConnection(connectionController.mainP, null, () => {
+      if (timeoutError !== null) {
+        clearTimeout(timeoutError);
+        timeoutError = null;
+      }
+      console.log("Reinitializing main peer connection due to error...");
+      timeoutError = setTimeout(() => {
+        timeoutError = null;
+        init();
+      }, 2000);
+    });
+    const { p } = pData;
+    p.on("close", () => {
+      setState("disconnected");
+      init();
+    });
     connectionController.onPeerPData = (peerPData) => {
-      pData.p.setRemoteDescription(peerPData);
+      console.log("Setting peer signal data");
+      p.signal(peerPData.signalData);
     }
     connectionController.mainPData = pData;
-  });
+  }
+  init();
 }

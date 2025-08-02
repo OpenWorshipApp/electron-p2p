@@ -2,10 +2,6 @@ const { ipcMain } = require("electron");
 const { app, BrowserWindow } = require("electron/main");
 const path = require("node:path");
 
-const mainData = {
-  id: null,
-  signalData: null,
-};
 function getWindows(id, isSelf = false) {
   const allWindows = BrowserWindow.getAllWindows();
   if (isSelf) {
@@ -26,12 +22,6 @@ function createWindow() {
   });
   win.webContents.openDevTools();
   win.loadFile("index.html");
-  const id = win.webContents.id;
-  mainData.id = id;
-  win.on("closed", () => {
-    mainData.id = null;
-    mainData.signalData = null;
-  });
   win.webContents.setWindowOpenHandler(({ url }) => {
     console.log("Window open handler:", url);
     return {

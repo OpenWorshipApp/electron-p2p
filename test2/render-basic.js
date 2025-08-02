@@ -21,7 +21,7 @@ function setState(state) {
 
 function pSend(message) {
   console.log(Date.now());
-  connectionController.p?.send(message);
+  connectionController.mainP?.send(message);
 }
 
 ipcRenderer.on("message", (_event, message) => {
@@ -31,6 +31,17 @@ ipcRenderer.on("message", (_event, message) => {
 function eSend(message) {
   console.log("e", Date.now());
   ipcRenderer.send("message", message);
+}
+
+function wMessage(message) {
+  console.log('w', Date.now());
+  console.log(message);
+}
+window.wSend = (message) => {
+  if (window.screenWindow) {
+    console.log('w', Date.now());
+    window.screenWindow.wMessage(message);
+  }
 }
 
 function send(message, isForceE = false) {
