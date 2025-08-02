@@ -5,7 +5,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev1": "electron ./test1/main.js",
-    "dev2": "electron ./test2/main.js"
+    "dev2": "electron ./test2/main.js",
+    "dev3": "electron ./test3/main.js"
   },
   "author": "",
   "license": "ISC",

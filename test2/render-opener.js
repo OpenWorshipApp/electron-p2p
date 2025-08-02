@@ -36,8 +36,10 @@ function toggleScreenOpener() {
 }
 
 function openScreenWindow() {
-  console.log('open');
-  let windowFeatures = "popup,top=0,left=0,width=400,height=400,scrollbars=yes,resizable=no,toolbar=no,location=no,status=no,menubar=no";
+  let windowFeatures = (
+    "popup,top=0,left=0,width=400,height=400,scrollbars=yes," +
+    "resizable=no,toolbar=no,location=no,status=no,menubar=no"
+  );
   const handle = window.open(
     location.href,
     "screen",
