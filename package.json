@@ -4,7 +4,8 @@
   "main": "main.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "electron ."
+    "dev1": "electron ./test1/main.js",
+    "dev2": "electron ./test2/main.js"
   },
   "author": "",
   "license": "ISC",

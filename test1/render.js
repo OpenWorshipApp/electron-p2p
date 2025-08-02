@@ -70,7 +70,7 @@ function initPeer(p) {
   loadMainSignalData();
 }
 let timeOutId = null;
-function reInit() {
+function init() {
   if (timeOutId !== null) {
     clearTimeout(timeOutId);
   }
@@ -98,7 +98,7 @@ function init() {
   });
   p.on("error", (err) => {
     console.log("error", err);
-    reInit();
+    init();
   });
   p.on("connect", () => {
     console.log("Peer connected");
@@ -117,7 +117,7 @@ function init() {
   });
   p.on("close", () => {
     setState("disconnected");
-    reInit();
+    init();
   });
   window.p = p;
 }
