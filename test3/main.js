@@ -1,4 +1,4 @@
-const { app, BrowserWindow } = require("electron/main");
+const { app, BrowserWindow, ipcMain } = require("electron/main");
 const path = require("node:path");
 
 function createWindow() {
@@ -13,8 +13,8 @@ function createWindow() {
   });
   win.webContents.openDevTools();
   win.loadFile("index.html");
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    console.log("Window open handler:", url);
+  win.webContents.setWindowOpenHandler((handler) => {
+    console.log("Window open handler:", handler.url);
     return {
       action: 'allow',
       overrideBrowserWindowOptions: {
@@ -27,13 +27,15 @@ function createWindow() {
       }
     };
   });
+  return win;
 }
 
+let mainWindow = null;
 app.whenReady().then(async () => {
-  createWindow();
+  mainWindow = createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      mainWindow = createWindow();
     }
   });
 });
@@ -41,4 +43,12 @@ app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {
     app.quit();
   }
+});
+
+ipcMain.on("popup-loaded", () => {
+  mainWindow.webContents.send("popup-loaded");
+  mainWindow.webContents
+    .executeJavaScript(`
+      window.initForPopupWindowConnection(true);
+    `);
 });

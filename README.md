@@ -19,5 +19,14 @@ This project demonstrates a peer-to-peer (P2P) communication system using Electr
 
 ```bash
 npm i
-npm start
+
+# simple p2p
+npm run dev1
+
+# p2p and popup window
+npm run dev2
+
+# popup window
+npm run dev3
+
 ```

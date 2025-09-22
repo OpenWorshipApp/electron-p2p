@@ -1,4 +1,4 @@
-const { isMain } = window.electronAPI;
+const { isMain, ipcRenderer } = window.electronAPI;
 
 function consoleLog(...args) {
   console.log(...args);
@@ -11,8 +11,9 @@ function wMessage(message) {
   consoleLog(message);
 }
 window.wSend = (message) => {
-  if (window.screenWindow) {
+  const handler = window.getPopupWindowHandler();
+  if (handler) {
     consoleLog('w', Date.now());
-    window.screenWindow.wMessage(message);
+    handler.wMessage(message);
   }
 }
